@@ -34,6 +34,8 @@ export class TaskContextService {
             .limit(limit)
             .getMany();
 
+        console.log('Found similar tasks:', tasks);
+
         return tasks.map(task => ({
             id: task.id,
             title: task.title,

@@ -77,49 +77,6 @@ This backend implements the **HTX Software Engineering Take-Home Test** requirem
 | **Validation** | class-validator, class-transformer |
 
 ---
-
-## Getting Started
-
-### Prerequisites
-- Node.js 18+ and npm
-- PostgreSQL 15+ (or use Docker)
-- Google Gemini API key ([Get one here](https://ai.google.dev/))
-
-### Environment Setup
-
-1. **Clone the repository**
-```bash
-git clone <repository-url>
-cd Task-manager-Backend-Submission
-```
-
-2. **Create `.env` file** in the project root:
-```env
-# Server
-PORT=5000
-NODE_ENV=development
-
-# Database
-DB_HOST=localhost
-DB_PORT=5432
-DB_USER=root
-DB_PASSWORD=password
-DB_NAME=task_assignment
-
-# LLM (Optional - system uses fallback if not provided)
-LLM_PROVIDER=gemini
-GEMINI_API_KEY=your_gemini_api_key_here
-
-# Frontend (CORS)
-FRONTEND_URL=http://localhost:3000
-```
-
-### Installation
-
-```bash
-npm install
-```
-
 ### Running Locally
 
 #### Option 1: With Local PostgreSQL
@@ -137,32 +94,6 @@ CREATE EXTENSION "uuid-ossp";
 psql -U root -d task_assignment -f 0-db/01-schema.sql
 psql -U root -d task_assignment -f 0-db/02-seed.sql
 ```
-
-3. **Start the development server**:
-```bash
-npm run dev
-```
-
-Server will run on `http://localhost:5000`
-
-#### Option 2: Using Docker Compose (Recommended)
-
-**From the parent directory** containing both backend and frontend:
-
-```bash
-docker-compose up -d
-```
-
-This will:
-- Start PostgreSQL on port `5433` (mapped from 5432)
-- Auto-run schema and seed scripts via Docker entrypoint
-- Build and start the backend on port `5000`
-- Build and start the frontend on port `3000`
-
-**Access:**
-- Backend API: `http://localhost:5000`
-- API Documentation: `http://localhost:5000/api-docs`
-- Health Check: `http://localhost:5000/health`
 
 ---
 
@@ -521,6 +452,10 @@ src/
 #### 5. **Custom Exception Hierarchy**
 - **Why**: Type-safe error handling with automatic HTTP status code mapping
 - **Benefit**: Consistent error responses, easier error handling in middleware
+
+#### 5. **Why no caching?**
+- **Why**: Complicated key creation for dynamic LLM responses, and key comparison is very tricky. Could end up being counterproductive if cached wrong responses.
+- **Initial considerations** - LRU caching of the existing matching tasks, but removed as a feature as this was not feasible.
 
 ### Data Flow Patterns
 
