@@ -7,11 +7,6 @@
 .DS_Store
 Thumbs.db
 
-# --- Environment files ---
-.env
-.env.local
-.env.*.local
-
 # --- Dependencies (in case someone runs npm install at root) ---
 node_modules/
 
