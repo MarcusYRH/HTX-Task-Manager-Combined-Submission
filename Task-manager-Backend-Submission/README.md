@@ -491,8 +491,6 @@ Task created with predicted skills
 ### Core Framework & Runtime
 
 **Node.js 18 (LTS)**
-- **Why**: Active LTS support until April 2025, stable, wide ecosystem
-- **Benefit**: Excellent async I/O performance for API server workload
 
 **Express.js 4.18**
 - **Why**: Industry standard, minimal overhead, flexible middleware system
@@ -502,21 +500,10 @@ Task created with predicted skills
 - **Benefit**: Simple, well-documented, extensive middleware ecosystem
 
 **TypeScript 5.9**
-- **Why**: Type safety reduces runtime errors, better IDE support
-- **Benefit**: Interfaces and types document code, catch bugs at compile time
 
 ### Database & ORM
 
 **PostgreSQL 15**
-- **Why**:
-  - ACID compliance for data integrity
-  - Trigram extension (`pg_trgm`) for fuzzy text search
-  - Excellent performance for relational data
-  - Self-referencing foreign keys for parent-child relationships
-- **Alternatives Considered**:
-  - MongoDB (rejected: relational data and complex relationships favor SQL)
-  - MySQL (rejected: PostgreSQL has better full-text search and JSON support)
-- **Benefit**: Robust, feature-rich, excellent for complex queries
 
 **TypeORM 0.3.27**
 - **Why**:
@@ -566,7 +553,7 @@ Task created with predicted skills
 
 **class-validator 0.14 + class-transformer 0.5**
 - **Why**: Decorator-based validation on DTOs (similar to Java Bean Validation)
-- **Benefit**: Declarative validation rules, automatic transformation, type-safe
+- **Benefit**: Declarative validation rules, automatic transformation, type-safe. Clean low-code request validations.
 
 ### API Documentation
 
@@ -574,19 +561,7 @@ Task created with predicted skills
 - **Why**: Interactive API documentation, industry standard
 - **Benefit**: Auto-generates try-it-out interface, exports OpenAPI spec for client generation
 
-**yamljs 0.3**
-- **Why**: Parses OpenAPI YAML file for Swagger UI
-- **Benefit**: YAML is more readable than JSON for documentation
-
-### Development Tools
-
-**ts-node-dev 2.0**
-- **Why**: Development server with auto-restart on file changes
-- **Benefit**: Faster than nodemon + ts-node, only recompiles changed files
-
-**TypeScript Compiler 5.9**
-- **Why**: Transpiles TypeScript to JavaScript for production
-- **Benefit**: Tree-shaking, optimization, ES module support
+I also generated a Postman collection from the OpenAPI spec for your reference for easier testing and evaluation.
 
 ### Utilities
 
