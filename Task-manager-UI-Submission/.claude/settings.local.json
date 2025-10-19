@@ -1,9 +1,0 @@
-{
-  "permissions": {
-    "allow": [
-      "Bash(move srcutilsapiHelpers.js srcutilsapiHelpers.ts)"
-    ],
-    "deny": [],
-    "ask": []
-  }
-}

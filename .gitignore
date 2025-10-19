@@ -1,6 +1,7 @@
 # --- IDE/Editor files ---
 .idea/
 .vscode/
+.claude/
 *.iml
 
 # --- OS files ---
