@@ -1,0 +1,377 @@
+{
+  "info": {
+    "name": "Task Assignment API",
+    "description": "Backend API for Task Assignment Application - HTX Assignment",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "version": "1.0.0"
+  },
+  "item": [
+    {
+      "name": "Tasks",
+      "item": [
+        {
+          "name": "Create Task",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Implement user authentication system\",\n  \"skillIds\": [1, 2],\n  \"developerId\": 3,\n  \"parentTaskId\": null\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/tasks",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "tasks"]
+            },
+            "description": "Create a new task with required skills. Developer assignment is optional."
+          },
+          "response": []
+        },
+        {
+          "name": "Create Subtask",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Write unit tests for authentication\",\n  \"skillIds\": [2],\n  \"developerId\": 2,\n  \"parentTaskId\": 1\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/tasks",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "tasks"]
+            },
+            "description": "Create a subtask by providing a parentTaskId"
+          },
+          "response": []
+        },
+        {
+          "name": "Get All Tasks (No Filter)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/tasks",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "tasks"]
+            },
+            "description": "Get all tasks (parents + subtasks) with default pagination (page 1, pageSize 10)"
+          },
+          "response": []
+        },
+        {
+          "name": "Get All Tasks (Parent Only)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/tasks?parentOnly=true&page=1&pageSize=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "tasks"],
+              "query": [
+                {
+                  "key": "parentOnly",
+                  "value": "true",
+                  "description": "Only return parent tasks (Level 0)"
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "pageSize",
+                  "value": "10"
+                }
+              ]
+            },
+            "description": "Get only parent tasks (excludes subtasks)"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Tasks by Status",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/tasks?status=To-do&parentOnly=true",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "tasks"],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "To-do",
+                  "description": "Filter by status: To-do, In Progress, or Done"
+                },
+                {
+                  "key": "parentOnly",
+                  "value": "true"
+                }
+              ]
+            },
+            "description": "Get tasks filtered by status"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Tasks by Developer",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/tasks?developerId=1&parentOnly=true",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "tasks"],
+              "query": [
+                {
+                  "key": "developerId",
+                  "value": "1",
+                  "description": "Filter by assigned developer ID"
+                },
+                {
+                  "key": "parentOnly",
+                  "value": "true"
+                }
+              ]
+            },
+            "description": "Get tasks assigned to a specific developer"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Tasks by Skills",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/tasks?skillIds=1,2&parentOnly=true",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "tasks"],
+              "query": [
+                {
+                  "key": "skillIds",
+                  "value": "1,2",
+                  "description": "Comma-separated skill IDs"
+                },
+                {
+                  "key": "parentOnly",
+                  "value": "true"
+                }
+              ]
+            },
+            "description": "Get tasks that require specific skills"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Task by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/tasks/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "tasks", "1"]
+            },
+            "description": "Get task by ID with full recursive subtask tree"
+          },
+          "response": []
+        },
+        {
+          "name": "Update Task - Assign Developer",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"developerId\": 3\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/tasks/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "tasks", "1"]
+            },
+            "description": "Assign a developer to a task (validates developer has required skills)"
+          },
+          "response": []
+        },
+        {
+          "name": "Update Task - Unassign Developer",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"developerId\": null\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/tasks/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "tasks", "1"]
+            },
+            "description": "Unassign developer from a task"
+          },
+          "response": []
+        },
+        {
+          "name": "Update Task - Change Status",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"Done\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/tasks/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "tasks", "1"]
+            },
+            "description": "Change task status (validates all subtasks are Done before marking parent as Done)"
+          },
+          "response": []
+        },
+        {
+          "name": "Update Task - Both Fields",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"developerId\": 3,\n  \"status\": \"In Progress\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/tasks/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "tasks", "1"]
+            },
+            "description": "Update both developer and status in one request"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Developers",
+      "item": [
+        {
+          "name": "Get All Developers",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/developers",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "developers"]
+            },
+            "description": "Get all developers with their skills"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Developer by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/developers/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "developers", "1"]
+            },
+            "description": "Get developer by ID with skills and assigned tasks"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Skills",
+      "item": [
+        {
+          "name": "Get All Skills",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/skills",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "skills"]
+            },
+            "description": "Get all available skills"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Skill by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/skills/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "skills", "1"]
+            },
+            "description": "Get skill by ID with list of developers who have this skill"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/health",
+              "host": ["{{baseUrl}}"],
+              "path": ["health"]
+            },
+            "description": "Check if the API server is running"
+          },
+          "response": []
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:5000",
+      "type": "string"
+    }
+  ]
+}

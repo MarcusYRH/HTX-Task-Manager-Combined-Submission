@@ -1,0 +1,685 @@
+openapi: 3.0.3
+info:
+  title: Task Assignment API
+  description: Backend API for Task Assignment application managing developers, tasks, and skills
+  version: 1.0.0
+  contact:
+    name: HTX Task Assignment
+
+servers:
+  - url: http://localhost:5000
+    description: Development server
+
+tags:
+  - name: Tasks
+    description: Task management endpoints
+  - name: Developers
+    description: Developer management endpoints
+  - name: Skills
+    description: Skill management endpoints
+
+paths:
+  /api/tasks:
+    post:
+      tags:
+        - Tasks
+      summary: Create a new task
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskCreateDTO'
+            examples:
+              withDeveloper:
+                summary: Task with assigned developer
+                value:
+                  title: "Build responsive homepage"
+                  skillIds: [1]
+                  developerId: 1
+              withoutDeveloper:
+                summary: Task without developer
+                value:
+                  title: "Implement REST API endpoints"
+                  skillIds: [2]
+              withParent:
+                summary: Subtask with parent
+                value:
+                  title: "Write unit tests"
+                  skillIds: [2]
+                  parentTaskId: 1
+      responses:
+        '201':
+          description: Task created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskDetailDTO'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                duplicateTitle:
+                  value:
+                    message: "Task with title \"Build homepage\" already exists"
+                invalidSkills:
+                  value:
+                    message: "Duplicate skill IDs are not allowed"
+                developerMissingSkills:
+                  value:
+                    message: "Developer Alice does not have required skill(s) with ID(s): 2"
+        '404':
+          description: Referenced entity not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    get:
+      tags:
+        - Tasks
+      summary: Get all tasks with pagination and filters
+      description: |
+        Returns tasks with optional filtering. By default, returns ALL tasks (parents + subtasks).
+        Use `parentOnly=true` to return only top-level parent tasks (where parent_task_id is NULL).
+        For full task hierarchy, use GET /api/tasks/:id which returns the recursive tree.
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+          description: Page number for pagination
+        - name: pageSize
+          in: query
+          schema:
+            type: integer
+            default: 10
+          description: Number of items per page
+        - name: parentOnly
+          in: query
+          schema:
+            type: boolean
+            default: false
+          description: If true, returns only parent tasks (Level 0). If false or omitted, returns all tasks including subtasks.
+          example: true
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [To-do, In Progress, Done]
+          description: Filter by task status
+        - name: developerId
+          in: query
+          schema:
+            type: integer
+          description: Filter by assigned developer ID
+        - name: skillIds
+          in: query
+          description: Comma-separated skill IDs to filter tasks
+          schema:
+            type: string
+          example: "1,2"
+      responses:
+        '200':
+          description: Paginated list of tasks
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedTaskListResponse'
+              examples:
+                parentOnly:
+                  summary: With parentOnly=true (18 parent tasks)
+                  value:
+                    data:
+                      - id: 1
+                        title: "As a visitor, I want to see a responsive homepage"
+                        status: "In Progress"
+                        skills:
+                          - id: 1
+                            name: "Frontend"
+                        developer:
+                          id: 1
+                          name: "Alice"
+                        parentTaskId: null
+                        subtaskCount: 3
+                        createdAt: "2024-10-18T10:00:00Z"
+                        updatedAt: "2024-10-18T10:00:00Z"
+                    pagination:
+                      page: 1
+                      pageSize: 10
+                      totalItems: 18
+                      totalPages: 2
+                      hasNext: true
+                      hasPrevious: false
+                allTasks:
+                  summary: Without parentOnly (45 total tasks)
+                  value:
+                    data:
+                      - id: 1
+                        title: "As a visitor, I want to see a responsive homepage"
+                        status: "In Progress"
+                        skills:
+                          - id: 1
+                            name: "Frontend"
+                        developer:
+                          id: 1
+                          name: "Alice"
+                        parentTaskId: null
+                        subtaskCount: 3
+                        createdAt: "2024-10-18T10:00:00Z"
+                        updatedAt: "2024-10-18T10:00:00Z"
+                      - id: 4
+                        title: "Design mobile-responsive navigation menu"
+                        status: "Done"
+                        skills:
+                          - id: 1
+                            name: "Frontend"
+                        developer:
+                          id: 1
+                          name: "Alice"
+                        parentTaskId: 1
+                        subtaskCount: 3
+                        createdAt: "2024-10-18T10:00:00Z"
+                        updatedAt: "2024-10-18T10:00:00Z"
+                    pagination:
+                      page: 1
+                      pageSize: 10
+                      totalItems: 45
+                      totalPages: 5
+                      hasNext: true
+                      hasPrevious: false
+
+  /api/tasks/{id}:
+    get:
+      tags:
+        - Tasks
+      summary: Get task by ID with full recursive tree
+      description: Returns complete task details including all nested subtasks recursively (Level 0 → Level 1 → Level 2). Use this endpoint to view the full task hierarchy.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: The task ID
+          example: 1
+      responses:
+        '200':
+          description: Task details with full recursive subtask tree
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskDetailDTO'
+              example:
+                id: 1
+                title: "As a visitor, I want to see a responsive homepage"
+                status: "In Progress"
+                skills:
+                  - id: 1
+                    name: "Frontend"
+                developer:
+                  id: 1
+                  name: "Alice"
+                parentTask: null
+                subtasks:
+                  - id: 4
+                    title: "Design mobile-responsive navigation menu"
+                    status: "Done"
+                    skills:
+                      - id: 1
+                        name: "Frontend"
+                    developer:
+                      id: 1
+                      name: "Alice"
+                    parentTask:
+                      id: 1
+                      title: "As a visitor, I want to see a responsive homepage"
+                      status: "In Progress"
+                    subtasks:
+                      - id: 7
+                        title: "Create hamburger menu icon SVG"
+                        status: "Done"
+                        skills:
+                          - id: 1
+                            name: "Frontend"
+                        developer:
+                          id: 1
+                          name: "Alice"
+                        parentTask:
+                          id: 4
+                          title: "Design mobile-responsive navigation menu"
+                          status: "Done"
+                        subtasks: []
+                        createdAt: "2024-10-18T10:00:00Z"
+                        updatedAt: "2024-10-18T10:00:00Z"
+                    createdAt: "2024-10-18T10:00:00Z"
+                    updatedAt: "2024-10-18T10:00:00Z"
+                createdAt: "2024-10-18T10:00:00Z"
+                updatedAt: "2024-10-18T10:00:00Z"
+        '400':
+          description: Invalid task ID
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Task not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    put:
+      tags:
+        - Tasks
+      summary: Update task (assign developer or change status)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateTaskDTO'
+            examples:
+              assignDeveloper:
+                summary: Assign developer
+                value:
+                  developerId: 2
+              unassignDeveloper:
+                summary: Unassign developer
+                value:
+                  developerId: null
+              changeStatus:
+                summary: Change status
+                value:
+                  status: "Done"
+              both:
+                summary: Update both fields
+                value:
+                  developerId: 3
+                  status: "In Progress"
+      responses:
+        '200':
+          description: Task updated successfully with full details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskDetailDTO'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                noFields:
+                  value:
+                    message: "At least one field (developerId or status) must be provided for update"
+                invalidStatus:
+                  value:
+                    message: "Invalid status. Must be one of: To-do, In Progress, Done"
+                incompleteSubtasks:
+                  value:
+                    message: "Cannot mark task as Done. 2 subtask(s) are not complete."
+                developerMissingSkills:
+                  value:
+                    message: "Developer Bob does not have required skill(s) with ID(s): 1"
+        '404':
+          description: Task or developer not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/developers:
+    get:
+      tags:
+        - Developers
+      summary: Get all developers with skills
+      responses:
+        '200':
+          description: List of all developers
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DeveloperDTO'
+
+  /api/developers/{id}:
+    get:
+      tags:
+        - Developers
+      summary: Get developer by ID with skills and tasks
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Developer details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeveloperDTO'
+        '400':
+          description: Invalid developer ID
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Developer not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/skills:
+    get:
+      tags:
+        - Skills
+      summary: Get all skills
+      responses:
+        '200':
+          description: List of all skills
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SkillDTO'
+
+  /api/skills/{id}:
+    get:
+      tags:
+        - Skills
+      summary: Get skill by ID with developers
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Skill details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SkillDTO'
+        '400':
+          description: Invalid skill ID
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Skill not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  schemas:
+    TaskCreateDTO:
+      type: object
+      required:
+        - title
+      properties:
+        title:
+          type: string
+          maxLength: 100
+          example: "Build responsive homepage"
+        skillIds:
+          type: array
+          items:
+            type: integer
+          description: "Optional. If not provided, skills will be predicted using LLM based on task title and historical context."
+          example: [ 1, 2 ]
+        developerId:
+          type: integer
+          nullable: true
+          example: 1
+        parentTaskId:
+          type: integer
+          example: 5
+
+    UpdateTaskDTO:
+      type: object
+      properties:
+        developerId:
+          type: integer
+          nullable: true
+          description: "undefined = don't change, null = unassign, number = assign"
+        status:
+          type: string
+          enum: [To-do, In Progress, Done]
+          description: "undefined = don't change"
+
+    TaskListItemDTO:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        status:
+          type: string
+          enum: [To-do, In Progress, Done]
+        skills:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: integer
+              name:
+                type: string
+        developer:
+          type: object
+          nullable: true
+          properties:
+            id:
+              type: integer
+            name:
+              type: string
+        parentTaskId:
+          type: integer
+          nullable: true
+        subtaskCount:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    TaskDetailDTO:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        status:
+          type: string
+          enum: [To-do, In Progress, Done]
+        skills:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: integer
+              name:
+                type: string
+        developer:
+          type: object
+          nullable: true
+          properties:
+            id:
+              type: integer
+            name:
+              type: string
+        parentTask:
+          type: object
+          nullable: true
+          properties:
+            id:
+              type: integer
+            title:
+              type: string
+            status:
+              type: string
+        subtasks:
+          type: array
+          items:
+            $ref: '#/components/schemas/TaskDetailDTO'
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    Task:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        status:
+          type: string
+          enum: [To-do, In Progress, Done]
+        developerId:
+          type: integer
+          nullable: true
+        parentTaskId:
+          type: integer
+          nullable: true
+        skills:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: integer
+              name:
+                type: string
+        developer:
+          type: object
+          nullable: true
+          properties:
+            id:
+              type: integer
+            name:
+              type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    PaginatedTaskListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/TaskListItemDTO'
+        pagination:
+          type: object
+          properties:
+            page:
+              type: integer
+            pageSize:
+              type: integer
+            totalItems:
+              type: integer
+            totalPages:
+              type: integer
+            hasNext:
+              type: boolean
+            hasPrevious:
+              type: boolean
+
+    DeveloperDTO:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        skills:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: integer
+              name:
+                type: string
+        tasks:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: integer
+              title:
+                type: string
+              status:
+                type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    SkillDTO:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        developers:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: integer
+              name:
+                type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    Error:
+      type: object
+      properties:
+        message:
+          type: string
+        statusCode:
+          type: integer

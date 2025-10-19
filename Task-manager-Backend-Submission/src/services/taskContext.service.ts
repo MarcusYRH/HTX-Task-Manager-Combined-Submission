@@ -1,0 +1,43 @@
+import {Repository} from 'typeorm';
+import {Task} from '../data/entities/Task';
+import {AppDataSource} from '../config/database';
+
+export interface ContextTask {
+    id: number;
+    title: string;
+    skills: { id: number; name: string }[];
+}
+
+export class TaskContextService {
+    private taskRepository: Repository<Task>;
+
+    constructor() {
+        this.taskRepository = AppDataSource.getRepository(Task);
+    }
+
+    async findSimilarTasks(title: string, keywords?: string[], limit: number = 5): Promise<ContextTask[]> {
+        const searchTerms = keywords && keywords.length > 0 ? keywords.join(' ') : title;
+
+        const tasks = await this.taskRepository
+            .createQueryBuilder('task')
+            .leftJoinAndSelect('task.skills', 'skill')
+            .where(
+                `similarity(task.title, :title) > 0.2 OR word_similarity(:searchTerms, task.title) > 0.3`,
+                {title, searchTerms}
+            )
+            .orderBy(
+                `GREATEST(similarity(task.title, :title), word_similarity(:searchTerms, task.title))`,
+                'DESC'
+            )
+            .setParameter('title', title)
+            .setParameter('searchTerms', searchTerms)
+            .limit(limit)
+            .getMany();
+
+        return tasks.map(task => ({
+            id: task.id,
+            title: task.title,
+            skills: task.skills.map(s => ({id: s.id, name: s.name}))
+        }));
+    }
+}

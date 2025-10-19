@@ -1,0 +1,71 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: task_assignment_db
+    environment:
+      POSTGRES_USER: root
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: task_assignment
+    ports:
+      - "5433:5432"
+    volumes:
+      - ./Task-manager-Backend-Submission/0-db/01-schema.sql:/docker-entrypoint-initdb.d/01-schema.sql
+      - ./Task-manager-Backend-Submission/0-db/02-seed.sql:/docker-entrypoint-initdb.d/02-seed.sql
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - app_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U root -d task_assignment"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  backend:
+    env_file:
+      - ./Task-manager-Backend-Submission/.env
+    build:
+      context: ./Task-manager-Backend-Submission
+      dockerfile: Dockerfile
+    image: task-assignment-backend:latest
+    container_name: task_assignment_backend
+    ports:
+      - "5000:5000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - app_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:5000/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  frontend:
+    env_file:
+      - ./Task-manager-UI-Submission/.env
+    build:
+      context: ./Task-manager-UI-Submission
+      dockerfile: Dockerfile
+    container_name: task-manager-frontend
+    ports:
+      - "3000:80"
+    environment:
+      - NODE_ENV=production
+      - VITE_API_URL=http://localhost:5000/api
+    restart: unless-stopped
+    networks:
+      - app_network
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  app_network:
+    name: task-manager-shared
