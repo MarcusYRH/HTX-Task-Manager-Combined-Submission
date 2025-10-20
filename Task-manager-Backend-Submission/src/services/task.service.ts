@@ -29,49 +29,6 @@ export class TaskService {
         this.llmService = new LLMService(this.taskContextService);
     }
 
-    private async loadTaskWithRelations(taskId: number, includeSubtasks: boolean = true, maxSubtaskDepth: number = 2): Promise<Task | null> {
-        const queryBuilder = this.taskRepository
-            .createQueryBuilder('task')
-            .leftJoinAndSelect('task.skills', 'skills')
-            .leftJoinAndSelect('task.developer', 'developer')
-            .leftJoinAndSelect('task.parentTask', 'parentTask')
-            .where('task.id = :taskId', { taskId });
-
-        if (includeSubtasks && maxSubtaskDepth >= 1) {
-            queryBuilder
-                .leftJoinAndSelect('task.subtasks', 'subtasks')
-                .leftJoinAndSelect('subtasks.skills', 'subtaskSkills')
-                .leftJoinAndSelect('subtasks.developer', 'subtaskDeveloper');
-
-            if (maxSubtaskDepth >= 2) {
-                queryBuilder
-                    .leftJoinAndSelect('subtasks.subtasks', 'subsubtasks')
-                    .leftJoinAndSelect('subsubtasks.skills', 'subsubtaskSkills')
-                    .leftJoinAndSelect('subsubtasks.developer', 'subsubtaskDeveloper');
-            }
-        }
-
-        return await queryBuilder.getOne();
-    }
-
-    private buildTaskDetailDTOSync(task: Task): TaskDetailDTO {
-        return {
-            id: task.id,
-            title: task.title,
-            status: task.status,
-            skills: task.skills.map(s => ({ id: s.id, name: s.name })),
-            developer: task.developer ? { id: task.developer.id, name: task.developer.name } : null,
-            parentTask: task.parentTask ? {
-                id: task.parentTask.id,
-                title: task.parentTask.title,
-                status: task.parentTask.status
-            } : null,
-            subtasks: (task.subtasks || []).map(subtask => this.buildTaskDetailDTOSync(subtask)),
-            createdAt: task.createdAt,
-            updatedAt: task.updatedAt
-        };
-    }
-
     // Ordering: CRUD tasks first. Then listing and retrieval.
     async createTask(taskRequest: TaskCreateDTO): Promise<TaskDetailDTO> {
         await this.validateTitle(taskRequest.title);
@@ -93,7 +50,7 @@ export class TaskService {
             return null;
         }
 
-        return this.buildTaskDetailDTOSync(task);
+        return this.buildTaskDetailDTO(task);
     }
 
     async updateTask(id: number, updateRequest: UpdateTaskDTO): Promise<TaskDetailDTO> {
@@ -191,7 +148,50 @@ export class TaskService {
         task.subtasks = [];
         task.parentTask = null;
 
-        return this.buildTaskDetailDTOSync(task);
+        return this.buildTaskDetailDTO(task);
+    }
+
+    private async loadTaskWithRelations(taskId: number, includeSubtasks: boolean = true, maxSubtaskDepth: number = 2): Promise<Task | null> {
+        const queryBuilder = this.taskRepository
+            .createQueryBuilder('task')
+            .leftJoinAndSelect('task.skills', 'skills')
+            .leftJoinAndSelect('task.developer', 'developer')
+            .leftJoinAndSelect('task.parentTask', 'parentTask')
+            .where('task.id = :taskId', { taskId });
+
+        if (includeSubtasks && maxSubtaskDepth >= 1) {
+            queryBuilder
+                .leftJoinAndSelect('task.subtasks', 'subtasks')
+                .leftJoinAndSelect('subtasks.skills', 'subtaskSkills')
+                .leftJoinAndSelect('subtasks.developer', 'subtaskDeveloper');
+
+            if (maxSubtaskDepth >= 2) {
+                queryBuilder
+                    .leftJoinAndSelect('subtasks.subtasks', 'subsubtasks')
+                    .leftJoinAndSelect('subsubtasks.skills', 'subsubtaskSkills')
+                    .leftJoinAndSelect('subsubtasks.developer', 'subsubtaskDeveloper');
+            }
+        }
+
+        return await queryBuilder.getOne();
+    }
+
+    private buildTaskDetailDTO(task: Task): TaskDetailDTO {
+        return {
+            id: task.id,
+            title: task.title,
+            status: task.status,
+            skills: task.skills.map(s => ({ id: s.id, name: s.name })),
+            developer: task.developer ? { id: task.developer.id, name: task.developer.name } : null,
+            parentTask: task.parentTask ? {
+                id: task.parentTask.id,
+                title: task.parentTask.title,
+                status: task.parentTask.status
+            } : null,
+            subtasks: (task.subtasks || []).map(subtask => this.buildTaskDetailDTO(subtask)),
+            createdAt: task.createdAt,
+            updatedAt: task.updatedAt
+        };
     }
 
     private buildTaskListItemDTO(task: Task & { subtaskCount?: number }): TaskListItemDTO {
@@ -377,7 +377,7 @@ export class TaskService {
 
         await this.taskRepository.save(task);
 
-        return this.buildTaskDetailDTOSync(task);
+        return this.buildTaskDetailDTO(task);
     }
 
     private async predictSkillsWithLLM(title: string): Promise<number[]> {
