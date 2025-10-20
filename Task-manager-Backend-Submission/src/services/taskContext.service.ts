@@ -2,6 +2,9 @@ import {Repository} from 'typeorm';
 import {Task} from '../data/entities/Task';
 import {AppDataSource} from '../config/database';
 
+/**
+ * Initially meant to use caching here, but I reused this service to fetch from DB instead due to key-matching over-complexity.
+ */
 export interface ContextTask {
     id: number;
     title: string;

@@ -41,6 +41,7 @@ This backend implements the **HTX Software Engineering Take-Home Test** requirem
 - **Context-aware predictions** using similar historical tasks as examples
 - **Dual-phase verification** for improved accuracy
 - **Fallback mechanism** ensuring system reliability
+- NOTE: Why no LLM-powered keyword-based matching alongside this? I tried this out previously, but found that keyword based matching did not provide as much benefit as opposed to just using the LLM with RAG. The Gemini 2.0 LLM was able to pick up on patterns and context that simple keyword matching could not, leading to better overall predictions.
 
 ### 2. Subtask Support
 - **Parent-child task relationships** for task organization
@@ -662,3 +663,5 @@ I also generated a Postman collection from the OpenAPI spec for your reference f
 4. **Subtask completion**: Try marking parent "Done" with incomplete subtasks - should fail
 5. **Filter queries**: `GET /api/tasks?parentOnly=true` to view only top-level tasks
 6. **Pagination**: `GET /api/tasks?page=2&pageSize=5`
+
+### Known Limitations

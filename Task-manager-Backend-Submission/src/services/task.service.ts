@@ -29,6 +29,50 @@ export class TaskService {
         this.llmService = new LLMService(this.taskContextService);
     }
 
+    private async loadTaskWithRelations(taskId: number, includeSubtasks: boolean = true, maxSubtaskDepth: number = 2): Promise<Task | null> {
+        const queryBuilder = this.taskRepository
+            .createQueryBuilder('task')
+            .leftJoinAndSelect('task.skills', 'skills')
+            .leftJoinAndSelect('task.developer', 'developer')
+            .leftJoinAndSelect('task.parentTask', 'parentTask')
+            .where('task.id = :taskId', { taskId });
+
+        if (includeSubtasks && maxSubtaskDepth >= 1) {
+            queryBuilder
+                .leftJoinAndSelect('task.subtasks', 'subtasks')
+                .leftJoinAndSelect('subtasks.skills', 'subtaskSkills')
+                .leftJoinAndSelect('subtasks.developer', 'subtaskDeveloper');
+
+            if (maxSubtaskDepth >= 2) {
+                queryBuilder
+                    .leftJoinAndSelect('subtasks.subtasks', 'subsubtasks')
+                    .leftJoinAndSelect('subsubtasks.skills', 'subsubtaskSkills')
+                    .leftJoinAndSelect('subsubtasks.developer', 'subsubtaskDeveloper');
+            }
+        }
+
+        return await queryBuilder.getOne();
+    }
+
+    private buildTaskDetailDTOSync(task: Task): TaskDetailDTO {
+        return {
+            id: task.id,
+            title: task.title,
+            status: task.status,
+            skills: task.skills.map(s => ({ id: s.id, name: s.name })),
+            developer: task.developer ? { id: task.developer.id, name: task.developer.name } : null,
+            parentTask: task.parentTask ? {
+                id: task.parentTask.id,
+                title: task.parentTask.title,
+                status: task.parentTask.status
+            } : null,
+            subtasks: (task.subtasks || []).map(subtask => this.buildTaskDetailDTOSync(subtask)),
+            createdAt: task.createdAt,
+            updatedAt: task.updatedAt
+        };
+    }
+
+    // Ordering: CRUD tasks first. Then listing and retrieval.
     async createTask(taskRequest: TaskCreateDTO): Promise<TaskDetailDTO> {
         await this.validateTitle(taskRequest.title);
         let skillIds = taskRequest.skillIds;
@@ -41,6 +85,25 @@ export class TaskService {
         await this.validateDeveloper(taskRequest.developerId, skillIds);
         return await this.createAndPersistTask({...taskRequest, skillIds});
     }
+
+    async getTaskById(id: number): Promise<TaskDetailDTO | null> {
+        const task = await this.loadTaskWithRelations(id, true, 2);
+
+        if (!task) {
+            return null;
+        }
+
+        return this.buildTaskDetailDTOSync(task);
+    }
+
+    async updateTask(id: number, updateRequest: UpdateTaskDTO): Promise<TaskDetailDTO> {
+        await this.validateTaskExists(id);
+        this.validateUpdateRequest(updateRequest);
+        await this.validateDeveloperForUpdate(id, updateRequest.developerId);
+        await this.validateStatusUpdate(id, updateRequest.status);
+        return await this.updateAndPersistTask(id, updateRequest);
+    }
+
 
     async getAllTasks(options: {
         page?: number;
@@ -93,7 +156,7 @@ export class TaskService {
         if (options.parentOnly) {
             queryBuilder.andWhere('task.parentTaskId IS NULL');
         }
-// todo: implement remaining filters on the UI side
+// todo: implement remaining filters on the UI side as QOL improvements. Likely no time for that now.
         if (options.status) {
             queryBuilder.andWhere('task.status = :status', {status: options.status});
         }
@@ -107,38 +170,13 @@ export class TaskService {
         }
     }
 
-    async getTaskById(id: number): Promise<TaskDetailDTO | null> {
-        const task = await this.taskRepository.findOne({
-            where: {id},
-            relations: ['skills', 'developer', 'parentTask']
-        });
-
-        if (!task) {
-            return null;
-        }
-
-        return await this.buildTaskDetailDTO(task);
-    }
-
-    async updateTask(id: number, updateRequest: UpdateTaskDTO): Promise<TaskDetailDTO> {
-        await this.validateTaskExists(id);
-        this.validateUpdateRequest(updateRequest);
-        await this.validateDeveloperForUpdate(id, updateRequest.developerId);
-        await this.validateStatusUpdate(id, updateRequest.status);
-        return await this.updateAndPersistTask(id, updateRequest);
-    }
-
-
     private async createAndPersistTask(taskRequest: TaskCreateDTO): Promise<TaskDetailDTO> {
-        const skillRepository = AppDataSource.getRepository(Skill);
-        const skills = await skillRepository.findBy({id: In(taskRequest.skillIds || [])});
-
-        let developer = null;
-        if (taskRequest.developerId) {
-            developer = await this.developerRepository.findOne({
-                where: {id: taskRequest.developerId}
-            });
-        }
+        const [skills, developer] = await Promise.all([
+            this.skillRepository.find({ where: { id: In(taskRequest.skillIds || []) } }),
+            taskRequest.developerId
+                ? this.developerRepository.findOne({ where: { id: taskRequest.developerId } })
+                : Promise.resolve(null)
+        ]);
 
         const task = this.taskRepository.create({
             title: taskRequest.title,
@@ -150,12 +188,10 @@ export class TaskService {
 
         await this.taskRepository.save(task);
 
-        const savedTask = await this.taskRepository.findOne({
-            where: {id: task.id},
-            relations: ['skills', 'developer', 'parentTask']
-        });
+        task.subtasks = [];
+        task.parentTask = null;
 
-        return await this.buildTaskDetailDTO(savedTask!);
+        return this.buildTaskDetailDTOSync(task);
     }
 
     private buildTaskListItemDTO(task: Task & { subtaskCount?: number }): TaskListItemDTO {
@@ -167,34 +203,6 @@ export class TaskService {
             developer: task.developer ? {id: task.developer.id, name: task.developer.name} : null,
             parentTaskId: task.parentTaskId,
             subtaskCount: task.subtaskCount || 0,
-            createdAt: task.createdAt,
-            updatedAt: task.updatedAt
-        };
-    }
-
-    private async buildTaskDetailDTO(task: Task): Promise<TaskDetailDTO> {
-        const subtasks = await this.taskRepository.find({
-            where: {parentTaskId: task.id},
-            relations: ['skills', 'developer', 'subtasks']
-        });
-
-        const subtaskDTOs: TaskDetailDTO[] = [];
-        for (const subtask of subtasks) {
-            subtaskDTOs.push(await this.buildTaskDetailDTO(subtask));
-        }
-
-        return {
-            id: task.id,
-            title: task.title,
-            status: task.status,
-            skills: task.skills.map(s => ({id: s.id, name: s.name})),
-            developer: task.developer ? {id: task.developer.id, name: task.developer.name} : null,
-            parentTask: task.parentTask ? {
-                id: task.parentTask.id,
-                title: task.parentTask.title,
-                status: task.parentTask.status
-            } : null,
-            subtasks: subtaskDTOs,
             createdAt: task.createdAt,
             updatedAt: task.updatedAt
         };
@@ -346,7 +354,12 @@ export class TaskService {
     }
 
     private async updateAndPersistTask(id: number, updateRequest: UpdateTaskDTO): Promise<TaskDetailDTO> {
-        const task = await this.validateTaskId(id);
+        const task = await this.loadTaskWithRelations(id, true, 2);
+
+        if (!task) {
+            throw new EntityNotFoundException('Task', id);
+        }
+
         if (updateRequest.developerId !== undefined) {
             if (updateRequest.developerId === null) {
                 task.developer = null;
@@ -364,24 +377,7 @@ export class TaskService {
 
         await this.taskRepository.save(task);
 
-        const updatedTask = await this.taskRepository.findOne({
-            where: {id},
-            relations: ['skills', 'developer', 'parentTask']
-        });
-
-        return await this.buildTaskDetailDTO(updatedTask!);
-    }
-
-    private async validateTaskId(id: number) {
-        const task = await this.taskRepository.findOne({
-            where: {id},
-            relations: ['skills', 'developer']
-        });
-
-        if (!task) {
-            throw new EntityNotFoundException('Task', id);
-        }
-        return task;
+        return this.buildTaskDetailDTOSync(task);
     }
 
     private async predictSkillsWithLLM(title: string): Promise<number[]> {
